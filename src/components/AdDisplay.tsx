@@ -72,43 +72,64 @@ export const AdDisplay = ({ targetAge, targetGender, onAdView }: AdDisplayProps)
   const [currentAd, setCurrentAd] = useState<Ad>(ads[0]);
   const [timeRemaining, setTimeRemaining] = useState(15);
   const [isPlaying, setIsPlaying] = useState(false);
+  const [suitableAds, setSuitableAds] = useState<Ad[]>([]);
+  const [currentAdIndex, setCurrentAdIndex] = useState(0);
 
-  // Select appropriate ad based on demographics
+  // Select appropriate ads based on demographics
   useEffect(() => {
-    if (!targetAge || !targetGender) return;
+    if (!targetAge || !targetGender) {
+      setSuitableAds([]);
+      setIsPlaying(false);
+      return;
+    }
 
-    const suitableAds = ads.filter(ad => {
+    const filteredAds = ads.filter(ad => {
       const [minAge, maxAge] = ad.targetAge.split('-').map(Number);
       const ageMatch = targetAge >= minAge && targetAge <= maxAge;
       const genderMatch = ad.targetGender === 'both' || ad.targetGender === targetGender;
       return ageMatch && genderMatch;
     });
 
-    if (suitableAds.length > 0) {
-      const selectedAd = suitableAds[Math.floor(Math.random() * suitableAds.length)];
-      setCurrentAd(selectedAd);
-      setTimeRemaining(selectedAd.duration);
+    if (filteredAds.length > 0) {
+      setSuitableAds(filteredAds);
+      setCurrentAdIndex(0);
+      setCurrentAd(filteredAds[0]);
+      setTimeRemaining(filteredAds[0].duration);
       setIsPlaying(true);
-      onAdView?.(selectedAd.id);
+      onAdView?.(filteredAds[0].id);
+    } else {
+      // Show random ad if no match
+      const randomAd = ads[Math.floor(Math.random() * ads.length)];
+      setSuitableAds([randomAd]);
+      setCurrentAdIndex(0);
+      setCurrentAd(randomAd);
+      setTimeRemaining(randomAd.duration);
+      setIsPlaying(true);
+      onAdView?.(randomAd.id);
     }
   }, [targetAge, targetGender, onAdView]);
 
-  // Countdown timer
+  // Countdown timer and ad rotation
   useEffect(() => {
-    if (!isPlaying) return;
+    if (!isPlaying || suitableAds.length === 0) return;
 
     const interval = setInterval(() => {
       setTimeRemaining(prev => {
         if (prev <= 1) {
-          setIsPlaying(false);
-          return 0;
+          // Move to next ad in rotation
+          const nextIndex = (currentAdIndex + 1) % suitableAds.length;
+          const nextAd = suitableAds[nextIndex];
+          setCurrentAdIndex(nextIndex);
+          setCurrentAd(nextAd);
+          onAdView?.(nextAd.id);
+          return nextAd.duration;
         }
         return prev - 1;
       });
     }, 1000);
 
     return () => clearInterval(interval);
-  }, [isPlaying]);
+  }, [isPlaying, suitableAds, currentAdIndex, onAdView]);
 
   return (
     <Card className="bg-gradient-card border-border overflow-hidden">
@@ -178,18 +199,25 @@ export const AdDisplay = ({ targetAge, targetGender, onAdView }: AdDisplayProps)
               Targeted to: {targetAge ? `${targetAge}y ${targetGender}` : 'General audience'}
             </span>
           </div>
-          <Button 
-            variant="outline" 
-            size="sm"
-            onClick={() => {
-              setIsPlaying(!isPlaying);
-              if (!isPlaying) {
-                setTimeRemaining(currentAd.duration);
-              }
-            }}
-          >
-            {isPlaying ? 'Pause' : 'Play'}
-          </Button>
+          <div className="flex gap-2">
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={() => {
+                setIsPlaying(!isPlaying);
+                if (!isPlaying) {
+                  setTimeRemaining(currentAd.duration);
+                }
+              }}
+            >
+              {isPlaying ? 'Pause' : 'Play'}
+            </Button>
+            {suitableAds.length > 1 && (
+              <Badge variant="secondary" className="text-xs">
+                {currentAdIndex + 1}/{suitableAds.length}
+              </Badge>
+            )}
+          </div>
         </div>
       </div>
     </Card>

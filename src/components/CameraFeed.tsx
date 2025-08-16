@@ -1,8 +1,8 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Camera, StopCircle, Users } from "lucide-react";
+import { Camera, StopCircle, Users, CircleDot } from "lucide-react";
 
 interface DetectedPerson {
   id: string;
@@ -21,11 +21,13 @@ interface CameraFeedProps {
 
 export const CameraFeed = ({ onPersonDetected, isActive, onToggle }: CameraFeedProps) => {
   const [detectedPersons, setDetectedPersons] = useState<DetectedPerson[]>([]);
-  const [frameRate, setFrameRate] = useState(24);
   const [hasPermission, setHasPermission] = useState<boolean | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [isCapturing, setIsCapturing] = useState(false);
+  const [lastCapture, setLastCapture] = useState<string | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
 
   // Initialize webcam
   useEffect(() => {
@@ -67,36 +69,60 @@ export const CameraFeed = ({ onPersonDetected, isActive, onToggle }: CameraFeedP
     };
   }, []);
 
-  // Simulate face detection with real webcam
-  useEffect(() => {
-    if (!isActive || !hasPermission) return;
+  // Capture and analyze image
+  const captureImage = useCallback(async () => {
+    if (!videoRef.current || !canvasRef.current || !isActive) return;
 
-    const interval = setInterval(() => {
-      // Simulate random detection when camera is active
-      if (Math.random() > 0.7) {
+    setIsCapturing(true);
+    
+    const canvas = canvasRef.current;
+    const video = videoRef.current;
+    const ctx = canvas.getContext('2d');
+    
+    if (ctx) {
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      ctx.drawImage(video, 0, 0);
+      
+      // Get image data for analysis
+      const imageData = canvas.toDataURL('image/jpeg');
+      setLastCapture(imageData);
+      
+      // Simulate AI analysis (replace with real DeepFace/SSR-Net)
+      setTimeout(() => {
         const person: DetectedPerson = {
           id: Math.random().toString(36).substr(2, 9),
           age: Math.floor(Math.random() * 60) + 15,
           gender: Math.random() > 0.5 ? 'male' : 'female',
-          confidence: 0.8 + Math.random() * 0.15,
-          x: Math.random() * 60 + 20,
-          y: Math.random() * 60 + 20,
+          confidence: 0.85 + Math.random() * 0.10,
+          x: 30 + Math.random() * 40,
+          y: 20 + Math.random() * 40,
         };
         
-        setDetectedPersons(prev => [person]);
+        setDetectedPersons([person]);
         onPersonDetected(person);
+        setIsCapturing(false);
         
-        // Clear detection after 3 seconds
+        // Clear detection after 5 seconds
         setTimeout(() => {
           setDetectedPersons([]);
-        }, 3000);
-      }
-      
-      setFrameRate(20 + Math.random() * 10);
-    }, 2000);
+        }, 5000);
+      }, 1500); // Simulate processing time
+    }
+  }, [isActive, onPersonDetected]);
 
-    return () => clearInterval(interval);
-  }, [isActive, hasPermission, onPersonDetected]);
+  // Handle key press for capture
+  useEffect(() => {
+    const handleKeyPress = (event: KeyboardEvent) => {
+      if (event.code === 'Space' && isActive && hasPermission && !isCapturing) {
+        event.preventDefault();
+        captureImage();
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyPress);
+    return () => document.removeEventListener('keydown', handleKeyPress);
+  }, [captureImage, isActive, hasPermission, isCapturing]);
 
   return (
     <Card className="relative bg-gradient-card border-border overflow-hidden">
@@ -124,10 +150,20 @@ export const CameraFeed = ({ onPersonDetected, isActive, onToggle }: CameraFeedP
           </div>
         )}
         
-        {/* Scanning line animation when active */}
-        {isActive && (
-          <div className="absolute inset-0 overflow-hidden">
-            <div className="w-full h-0.5 bg-primary/60 animate-scan-line" />
+        {/* Capture overlay when processing */}
+        {isCapturing && (
+          <div className="absolute inset-0 bg-black/20 flex items-center justify-center">
+            <div className="bg-background/90 rounded-lg p-4 text-center">
+              <div className="animate-spin w-6 h-6 border-2 border-primary border-t-transparent rounded-full mx-auto mb-2" />
+              <p className="text-sm">Analyzing face...</p>
+            </div>
+          </div>
+        )}
+        
+        {/* Last capture thumbnail */}
+        {lastCapture && !isCapturing && (
+          <div className="absolute bottom-4 left-4 w-20 h-15 border-2 border-primary rounded overflow-hidden">
+            <img src={lastCapture} alt="Last capture" className="w-full h-full object-cover" />
           </div>
         )}
         
@@ -163,7 +199,7 @@ export const CameraFeed = ({ onPersonDetected, isActive, onToggle }: CameraFeedP
         <div className="absolute top-4 left-4 flex items-center gap-2">
           <div className={`w-3 h-3 rounded-full ${isActive ? 'bg-success animate-pulse' : 'bg-muted-foreground'}`} />
           <span className="text-sm font-medium text-foreground">
-            {isActive ? `Live • ${frameRate.toFixed(0)} FPS` : 'Standby'}
+            {isActive ? (isCapturing ? 'Processing...' : 'Ready - Press SPACE') : 'Standby'}
           </span>
         </div>
         
@@ -191,28 +227,53 @@ export const CameraFeed = ({ onPersonDetected, isActive, onToggle }: CameraFeedP
             </div>
           </div>
         )}
+        
+        {/* Instructions when active */}
+        {isActive && hasPermission && !isCapturing && detectedPersons.length === 0 && (
+          <div className="absolute bottom-20 left-1/2 transform -translate-x-1/2">
+            <div className="bg-background/90 backdrop-blur-sm rounded-lg px-4 py-2 text-center">
+              <p className="text-sm text-foreground">Press <kbd className="px-2 py-1 bg-muted rounded">SPACE</kbd> to capture</p>
+            </div>
+          </div>
+        )}
       </div>
       
       {/* Controls */}
       <div className="p-4 border-t border-border">
-        <Button
-          onClick={onToggle}
-          variant={isActive ? "destructive" : "default"}
-          className="w-full"
-        >
-          {isActive ? (
-            <>
-              <StopCircle className="w-4 h-4 mr-2" />
-              Stop Detection
-            </>
-          ) : (
-            <>
-              <Camera className="w-4 h-4 mr-2" />
-              Start Detection
-            </>
+        <div className="flex gap-2">
+          <Button
+            onClick={onToggle}
+            variant={isActive ? "destructive" : "default"}
+            className="flex-1"
+          >
+            {isActive ? (
+              <>
+                <StopCircle className="w-4 h-4 mr-2" />
+                Stop Camera
+              </>
+            ) : (
+              <>
+                <Camera className="w-4 h-4 mr-2" />
+                Start Camera
+              </>
+            )}
+          </Button>
+          {isActive && hasPermission && (
+            <Button
+              onClick={captureImage}
+              disabled={isCapturing}
+              variant="outline"
+              className="flex-1"
+            >
+              <CircleDot className="w-4 h-4 mr-2" />
+              {isCapturing ? 'Processing...' : 'Capture'}
+            </Button>
           )}
-        </Button>
+        </div>
       </div>
+      
+      {/* Hidden canvas for image capture */}
+      <canvas ref={canvasRef} className="hidden" />
     </Card>
   );
 };
