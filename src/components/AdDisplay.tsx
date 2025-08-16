@@ -3,6 +3,10 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Eye, Clock, Target } from "lucide-react";
+import skincareAd from "@/assets/ads/skincare-ad.jpg";
+import gamingLaptopAd from "@/assets/ads/gaming-laptop-ad.jpg";
+import retirementAd from "@/assets/ads/retirement-ad.jpg";
+import fitnessTrackerAd from "@/assets/ads/fitness-tracker-ad.jpg";
 
 interface Ad {
   id: string;
@@ -29,7 +33,7 @@ const ads: Ad[] = [
     targetAge: "25-45",
     targetGender: "female",
     category: "Beauty",
-    imageUrl: "/api/placeholder/400/300",
+    imageUrl: skincareAd,
     duration: 15
   },
   {
@@ -39,7 +43,7 @@ const ads: Ad[] = [
     targetAge: "18-35",
     targetGender: "male",
     category: "Technology",
-    imageUrl: "/api/placeholder/400/300",
+    imageUrl: gamingLaptopAd,
     duration: 10
   },
   {
@@ -49,7 +53,7 @@ const ads: Ad[] = [
     targetAge: "50-70",
     targetGender: "both",
     category: "Finance",
-    imageUrl: "/api/placeholder/400/300",
+    imageUrl: retirementAd,
     duration: 20
   },
   {
@@ -59,7 +63,7 @@ const ads: Ad[] = [
     targetAge: "20-40",
     targetGender: "both",
     category: "Health",
-    imageUrl: "/api/placeholder/400/300",
+    imageUrl: fitnessTrackerAd,
     duration: 12
   }
 ];
@@ -109,28 +113,30 @@ export const AdDisplay = ({ targetAge, targetGender, onAdView }: AdDisplayProps)
   return (
     <Card className="bg-gradient-card border-border overflow-hidden">
       <div className="relative aspect-video bg-muted overflow-hidden">
-        {/* Ad Content */}
-        <div className="absolute inset-0 bg-gradient-to-br from-primary/20 to-accent/20">
-          <div className="flex items-center justify-center h-full p-6">
-            <div className="text-center space-y-4">
-              <div className="w-24 h-24 bg-primary/20 rounded-full flex items-center justify-center mx-auto mb-4">
-                <Target className="w-12 h-12 text-primary" />
-              </div>
-              <h2 className="text-2xl font-bold text-foreground">{currentAd.title}</h2>
-              <p className="text-muted-foreground max-w-md">{currentAd.description}</p>
-              
-              {/* Targeting info */}
-              <div className="flex gap-2 justify-center">
-                <Badge variant="secondary" className="bg-primary/20 text-primary">
-                  {currentAd.category}
-                </Badge>
-                <Badge variant="outline">
-                  {currentAd.targetAge}
-                </Badge>
-                <Badge variant="outline">
-                  {currentAd.targetGender === 'both' ? 'All' : currentAd.targetGender}
-                </Badge>
-              </div>
+        {/* Ad Image */}
+        <img 
+          src={currentAd.imageUrl} 
+          alt={currentAd.title}
+          className="absolute inset-0 w-full h-full object-cover"
+        />
+        
+        {/* Overlay with ad info */}
+        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent">
+          <div className="absolute bottom-0 left-0 right-0 p-6 text-white">
+            <h2 className="text-2xl font-bold mb-2">{currentAd.title}</h2>
+            <p className="text-white/90 mb-4 max-w-md">{currentAd.description}</p>
+            
+            {/* Targeting info */}
+            <div className="flex gap-2">
+              <Badge variant="secondary" className="bg-white/20 text-white border-white/30">
+                {currentAd.category}
+              </Badge>
+              <Badge variant="outline" className="border-white/30 text-white">
+                {currentAd.targetAge}
+              </Badge>
+              <Badge variant="outline" className="border-white/30 text-white">
+                {currentAd.targetGender === 'both' ? 'All' : currentAd.targetGender}
+              </Badge>
             </div>
           </div>
         </div>

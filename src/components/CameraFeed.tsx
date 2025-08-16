@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -22,13 +22,57 @@ interface CameraFeedProps {
 export const CameraFeed = ({ onPersonDetected, isActive, onToggle }: CameraFeedProps) => {
   const [detectedPersons, setDetectedPersons] = useState<DetectedPerson[]>([]);
   const [frameRate, setFrameRate] = useState(24);
+  const [hasPermission, setHasPermission] = useState<boolean | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const streamRef = useRef<MediaStream | null>(null);
 
-  // Simulate face detection
+  // Initialize webcam
   useEffect(() => {
-    if (!isActive) return;
+    const initializeCamera = async () => {
+      try {
+        setError(null);
+        const stream = await navigator.mediaDevices.getUserMedia({ 
+          video: { 
+            width: { ideal: 640 },
+            height: { ideal: 480 },
+            facingMode: 'user'
+          } 
+        });
+        
+        streamRef.current = stream;
+        setHasPermission(true);
+        
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream;
+        }
+      } catch (err) {
+        console.error('Error accessing camera:', err);
+        setError('Camera access denied or not available');
+        setHasPermission(false);
+      }
+    };
+
+    if (isActive && hasPermission === null) {
+      initializeCamera();
+    }
+  }, [isActive, hasPermission]);
+
+  // Cleanup camera stream
+  useEffect(() => {
+    return () => {
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach(track => track.stop());
+      }
+    };
+  }, []);
+
+  // Simulate face detection with real webcam
+  useEffect(() => {
+    if (!isActive || !hasPermission) return;
 
     const interval = setInterval(() => {
-      // Simulate random detection
+      // Simulate random detection when camera is active
       if (Math.random() > 0.7) {
         const person: DetectedPerson = {
           id: Math.random().toString(36).substr(2, 9),
@@ -52,13 +96,33 @@ export const CameraFeed = ({ onPersonDetected, isActive, onToggle }: CameraFeedP
     }, 2000);
 
     return () => clearInterval(interval);
-  }, [isActive, onPersonDetected]);
+  }, [isActive, hasPermission, onPersonDetected]);
 
   return (
     <Card className="relative bg-gradient-card border-border overflow-hidden">
       <div className="aspect-video bg-muted relative overflow-hidden">
-        {/* Simulated camera feed background */}
-        <div className="absolute inset-0 bg-gradient-to-br from-muted to-card" />
+        {/* Real camera feed */}
+        {isActive && hasPermission && (
+          <video
+            ref={videoRef}
+            autoPlay
+            playsInline
+            muted
+            className="absolute inset-0 w-full h-full object-cover"
+          />
+        )}
+        
+        {/* Fallback background when camera is off or denied */}
+        {(!isActive || !hasPermission) && (
+          <div className="absolute inset-0 bg-gradient-to-br from-muted to-card" />
+        )}
+        
+        {/* Error message */}
+        {error && (
+          <div className="absolute inset-0 flex items-center justify-center bg-red-500/10">
+            <p className="text-red-500 text-center p-4">{error}</p>
+          </div>
+        )}
         
         {/* Scanning line animation when active */}
         {isActive && (
@@ -116,7 +180,14 @@ export const CameraFeed = ({ onPersonDetected, isActive, onToggle }: CameraFeedP
           <div className="absolute inset-0 flex items-center justify-center">
             <div className="text-center">
               <Camera className="w-12 h-12 text-muted-foreground mx-auto mb-2" />
-              <p className="text-muted-foreground">Camera feed inactive</p>
+              <p className="text-muted-foreground">
+                {hasPermission === false ? 'Camera access denied' : 'Camera feed inactive'}
+              </p>
+              {hasPermission === false && (
+                <p className="text-xs text-muted-foreground mt-2">
+                  Please allow camera access to enable face detection
+                </p>
+              )}
             </div>
           </div>
         )}
