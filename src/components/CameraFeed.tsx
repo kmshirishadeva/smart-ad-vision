@@ -151,13 +151,14 @@ export const CameraFeed = ({ onPersonDetected, isActive, onToggle }: CameraFeedP
             autoPlay
             playsInline
             muted
-            className="absolute inset-0 w-full h-full object-cover"
+            className="absolute inset-0 w-full h-full object-cover z-10"
+            style={{ transform: 'scaleX(-1)' }}
           />
         )}
         
         {/* Fallback background when camera is off or denied */}
         {(!isActive || !hasPermission) && (
-          <div className="absolute inset-0 bg-gradient-to-br from-muted to-card" />
+          <div className="absolute inset-0 bg-gradient-to-br from-muted to-card z-0" />
         )}
         
         {/* Error message */}
@@ -191,7 +192,7 @@ export const CameraFeed = ({ onPersonDetected, isActive, onToggle }: CameraFeedP
         {detectedPersons.map((person) => (
           <div
             key={person.id}
-            className="absolute border-2 border-primary animate-pulse-glow rounded-lg"
+            className="absolute border-2 border-primary animate-pulse-glow rounded-lg z-20"
             style={{
               left: `${person.x}%`,
               top: `${person.y}%`,
@@ -216,9 +217,9 @@ export const CameraFeed = ({ onPersonDetected, isActive, onToggle }: CameraFeedP
         ))}
         
         {/* Status overlay */}
-        <div className="absolute top-4 left-4 flex items-center gap-2">
+        <div className="absolute top-4 left-4 flex items-center gap-2 z-30">
           <div className={`w-3 h-3 rounded-full ${isActive ? 'bg-success animate-pulse' : 'bg-muted-foreground'}`} />
-          <span className="text-sm font-medium text-foreground">
+          <span className="text-sm font-medium text-foreground bg-background/80 px-2 py-1 rounded">
             {isActive ? (isCapturing ? 'Processing...' : 'Ready - Press SPACE') : 'Standby'}
           </span>
         </div>
